@@ -5,6 +5,9 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 
+PERSIST_DIR = "vectorstore"
+
+
 def carregar_pdf(caminho, departamento, tipo, versao):
     loader = PyPDFLoader(caminho)
     documentos = loader.load()
@@ -30,8 +33,14 @@ def montar_contexto(documentos):
 def detectar_departamento(pergunta):
     texto = pergunta.lower()
     regras = {
-        "RH": ["férias", "ferias", "benefício", "salário", "home office", "folga", "licença", "ponto"],
-        "TI": ["vpn", "senha", "acesso", "login", "sistema", "email", "computador", "rede", "segurança"]
+        "RH": [
+            "férias", "ferias", "benefício", "beneficios", "salário", "salario",
+            "home office", "remoto", "folga", "licença", "licenca", "ponto"
+        ],
+        "TI": [
+            "vpn", "senha", "acesso", "login", "sistema", "email",
+            "computador", "rede", "segurança", "seguranca"
+        ]
     }
 
     for departamento, palavras in regras.items():
@@ -53,9 +62,21 @@ def inicializar_rag():
     chunks = splitter.split_documents(documentos)
 
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    vector_db = Chroma.from_documents(chunks, embedding=embeddings)
 
-    llm = ChatGoogleGenerativeAI(model="gemini-flash-latest", temperature=0)
+    vector_db = Chroma(
+        persist_directory=PERSIST_DIR,
+        embedding_function=embeddings
+    )
+
+    if vector_db._collection.count() == 0:
+        vector_db.add_documents(chunks)
+        vector_db.persist()
+
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-flash-latest",
+        temperature=0,
+        timeout=30
+    )
 
     return vector_db, llm
 
@@ -64,13 +85,28 @@ def responder_pergunta(pergunta, vector_db, llm):
     departamento = detectar_departamento(pergunta)
     filtro = {"departamento": departamento} if departamento else None
 
-    docs_scores = vector_db.similarity_search_with_score(pergunta, k=3, filter=filtro)
-    docs = [doc for doc, score in docs_scores if score <= 1.5] or [docs_scores[0][0]]
+    docs_scores = vector_db.similarity_search_with_score(
+        pergunta,
+        k=3,
+        filter=filtro
+    )
+
+    docs = [doc for doc, score in docs_scores if score <= 1.5]
+
+    if not docs and docs_scores:
+        docs = [docs_scores[0][0]]
+
+    if not docs:
+        return "Não encontrei essa informação nos documentos disponíveis.", []
 
     contexto, fontes = montar_contexto(docs)
 
     prompt = f"""
 Você é um assistente corporativo interno.
+
+Responda à pergunta abaixo somente com base nas informações fornecidas no contexto.
+Se a resposta não estiver claramente no contexto, diga:
+"Não encontrei essa informação nos documentos disponíveis."
 
 Contexto:
 {contexto}
@@ -85,6 +121,15 @@ Resposta objetiva e profissional:
     conteudo = resposta.content
 
     if isinstance(conteudo, list):
-        conteudo = "".join(b.get("text", "") for b in conteudo if b.get("type") == "text")
+        conteudo = "".join(
+            bloco.get("text", "")
+            for bloco in conteudo
+            if bloco.get("type") == "text"
+        )
 
-    return conteudo.strip(), fontes
+    conteudo = conteudo.strip()
+
+    if not conteudo:
+        return "Não encontrei essa informação nos documentos disponíveis.", fontes
+
+    return conteudo, fontes
