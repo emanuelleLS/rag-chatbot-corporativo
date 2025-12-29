@@ -1,8 +1,8 @@
 # RAG Chatbot Corporativo 📄🤖
 
-Este projeto implementa um **chatbot corporativo baseado em RAG (Retrieval-Augmented Generation)**, capaz de responder perguntas de colaboradores **exclusivamente com base em documentos internos da empresa**, garantindo confiabilidade, rastreabilidade e controle de contexto.
+Este projeto implementa um chatbot corporativo baseado em RAG (Retrieval-Augmented Generation), capaz de responder perguntas exclusivamente com base em documentos internos da empresa, garantindo rastreabilidade, controle de contexto e redução de alucinações.
 
-O sistema simula o ambiente de uma empresa de grande porte, com múltiplos departamentos (RH, TI, etc.) e políticas internas organizadas em documentos PDF.
+O sistema simula um ambiente corporativo real, com múltiplos departamentos (RH, TI), políticas internas em PDF e respostas sempre acompanhadas de suas fontes.
 
 ---
 
@@ -38,13 +38,18 @@ PDFs → Chunks → Embeddings → Vector Store → Busca Semântica → LLM →
 
 ## 🧱 Tecnologias Utilizadas
 
+**Backend**
 - Python 3.11+
+- FastAPI
 - LangChain
 - ChromaDB
 - Sentence Transformers
 - Google Gemini
-- PyPDF
-- VS Code
+
+**Frontend**
+- Vue 3
+- Vite
+- Axios
 
 ---
 
@@ -53,14 +58,15 @@ PDFs → Chunks → Embeddings → Vector Store → Busca Semântica → LLM →
 rag-chatbot-corporativo/
 │
 ├── main.py
+├── ingest.py
+├── rag.py
 ├── documentos_empresa/
 │   ├── RH/
-│   │   ├── politica_ferias.pdf
-│   │   └── politica_home_office.pdf
+│   │   ├── RH_politica_unificada_NovaDrive_Technologies_v1.0
 │   └── TI/
 │       ├── procedimento_vpn.pdf
 │       └── politica_seguranca_informacao.pdf
-│
+├── frontend/
 ├── .gitignore
 ├── .env.example
 └── README.md
@@ -87,9 +93,17 @@ pip install -r requirements.txt
 
 Crie um arquivo .env com base no .env.example e informe sua chave da API do Google Gemini.
 
-### 5. Executar o projeto
-
-python main.py
+## 5. Executar o projeto
+  ### Backend
+  ```bash
+  uvicorn app.main:app --reload
+  ```
+  
+  ### Frontend
+  ```bash
+  cd frontend
+  npm install
+  npm run dev
 
 ---
 
@@ -99,15 +113,6 @@ python main.py
 - Filtros por departamento
 - Indicação explícita das fontes
 - Proteção contra alucinações
-
----
-
-## 🚀 Próximos Passos
-
-- API REST com FastAPI
-- Interface web
-- Upload dinâmico de documentos
-- Controle de acesso por departamento
 
 ---
 
