@@ -104,6 +104,7 @@ Crie um arquivo .env com base no .env.example e informe sua chave da API do Goog
   cd frontend
   npm install
   npm run dev
+ ```
 
 ---
 
